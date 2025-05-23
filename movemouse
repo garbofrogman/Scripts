@@ -4,23 +4,31 @@
 # Workaround for now is to use evemu-record and evemu-describe
 
 function move() {
-  sudo evemu-event /dev/input/event9 --type EV_REL --code REL_X --value 10 &&
-    sudo evemu-event /dev/input/event9 --type EV_REL --code REL_Y --value 10 --sync
+  # Don't do anything if mouse is manually being moved (Check every 5sec).
+  if (! sudo inotifywait /dev/input/event9 -qq -t 5); then
+    echo "moving"
+    sudo evemu-event /dev/input/event9 --type EV_REL --code REL_X --value 10 &&
+      sudo evemu-event /dev/input/event9 --type EV_REL --code REL_Y --value 10 --sync
+  fi
 }
 
 function move_back() {
-  sudo evemu-event /dev/input/event9 --type EV_REL --code REL_X --value -10 &&
-    sudo evemu-event /dev/input/event9 --type EV_REL --code REL_Y --value -10 --sync
+  if (! sudo inotifywait /dev/input/event9 -qq -t 5); then
+    echo "moving back"
+    sudo evemu-event /dev/input/event9 --type EV_REL --code REL_X --value -10 &&
+      sudo evemu-event /dev/input/event9 --type EV_REL --code REL_Y --value -10 --sync
+  fi
 }
 
-while true; do
-  # Don't do anything if mouse is manually being moved (Check every 5sec).
-  if (! sudo inotifywait /dev/input/event9 -qq -t 5); then
+function movemouse() {
+  while true; do
     move
-  fi
-
-  if (! sudo inotifywait /dev/input/event9 -qq -t 5); then
     move_back
-  fi
+  done
+}
 
-done
+if [ "$1" == "--start" ]; then
+  movemouse
+elif [ "$1" == "--stop" ]; then
+  kill $(pgrep movemouse)
+fi
