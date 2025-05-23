@@ -1,20 +1,20 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # TODO Get mouse device automatically
 # Workaround for now is to use evemu-record and evemu-describe
 
+# TODO detach from terminal / run in background
+
 function move() {
   # Don't do anything if mouse is manually being moved (Check every 5sec).
-  if (! sudo inotifywait /dev/input/event9 -qq -t 5); then
-    echo "moving"
+  if (! sudo inotifywait /dev/input/event9 -qq -t 2); then
     sudo evemu-event /dev/input/event9 --type EV_REL --code REL_X --value 10 &&
       sudo evemu-event /dev/input/event9 --type EV_REL --code REL_Y --value 10 --sync
   fi
 }
 
 function move_back() {
-  if (! sudo inotifywait /dev/input/event9 -qq -t 5); then
-    echo "moving back"
+  if (! sudo inotifywait /dev/input/event9 -qq -t 2); then
     sudo evemu-event /dev/input/event9 --type EV_REL --code REL_X --value -10 &&
       sudo evemu-event /dev/input/event9 --type EV_REL --code REL_Y --value -10 --sync
   fi
