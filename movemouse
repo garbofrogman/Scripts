@@ -7,16 +7,16 @@
 
 function move() {
   # Don't do anything if mouse is manually being moved (Check every 5sec).
-  if (! sudo inotifywait /dev/input/event9 -qq -t 2); then
-    sudo evemu-event /dev/input/event9 --type EV_REL --code REL_X --value 10 &&
-      sudo evemu-event /dev/input/event9 --type EV_REL --code REL_Y --value 10 --sync
+  if (! inotifywait /dev/input/event9 -qq -t 2); then
+    evemu-event /dev/input/event9 --type EV_REL --code REL_X --value 10 &&
+      evemu-event /dev/input/event9 --type EV_REL --code REL_Y --value 10 --sync
   fi
 }
 
 function move_back() {
-  if (! sudo inotifywait /dev/input/event9 -qq -t 2); then
-    sudo evemu-event /dev/input/event9 --type EV_REL --code REL_X --value -10 &&
-      sudo evemu-event /dev/input/event9 --type EV_REL --code REL_Y --value -10 --sync
+  if (! inotifywait /dev/input/event9 -qq -t 2); then
+    evemu-event /dev/input/event9 --type EV_REL --code REL_X --value -10 &&
+      evemu-event /dev/input/event9 --type EV_REL --code REL_Y --value -10 --sync
   fi
 }
 
@@ -28,7 +28,8 @@ function movemouse() {
 }
 
 if [ "$1" == "--start" ]; then
+  echo $$ >/tmp/movemousePID
   movemouse
 elif [ "$1" == "--stop" ]; then
-  kill $(pgrep movemouse)
+  kill $(cat /tmp/movemousePID)
 fi
