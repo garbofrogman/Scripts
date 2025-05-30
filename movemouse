@@ -3,33 +3,64 @@
 # TODO Get mouse device automatically
 # Workaround for now is to use evemu-record and evemu-describe
 
-# TODO detach from terminal / run in background
+# TODO Better check for mouse activity
 
-function move() {
-  # Don't do anything if mouse is manually being moved (Check every 5sec).
-  if (! inotifywait /dev/input/event9 -qq -t 2); then
-    evemu-event /dev/input/event9 --type EV_REL --code REL_X --value 10 &&
-      evemu-event /dev/input/event9 --type EV_REL --code REL_Y --value 10 --sync
+# TODO option to set end time
+
+# TODO (maybe) choose a specific area of screen to keep active
+
+dev='/dev/input/event9'
+
+TEMPDIR='/tmp/movemouse'
+PID=$TEMPDIR/PID
+
+function checkprivs() {
+  if [ $(id -u) -ne 0 ]; then
+    echo "Must be root."
+    exit 126
   fi
 }
 
-function move_back() {
+function move() {
+  # Don't do anything if mouse is manually being moved (Check every 2sec).
   if (! inotifywait /dev/input/event9 -qq -t 2); then
-    evemu-event /dev/input/event9 --type EV_REL --code REL_X --value -10 &&
-      evemu-event /dev/input/event9 --type EV_REL --code REL_Y --value -10 --sync
+    evemu-event $dev --type EV_REL --code REL_X --value $1 &&
+      evemu-event $dev --type EV_REL --code REL_Y --value $1 --sync
   fi
+}
+
+function print_help() {
+  echo "Usage: movemouse [OPTION]"
+  echo "Options:"
+  echo "  -g  Go...start moving the mouse lol."
+  echo "  -s  Stop moving the mouse."
+  echo "  -h  Show this help text and then exit."
+  exit 0
 }
 
 function movemouse() {
+  checkprivs
   while true; do
-    move
-    move_back
+    move 10
+    move -10
   done
 }
 
-if [ "$1" == "--start" ]; then
-  echo $$ >/tmp/movemousePID
-  movemouse
-elif [ "$1" == "--stop" ]; then
-  kill $(cat /tmp/movemousePID)
+if [ $# == "0" ]; then
+  print_help
 fi
+
+while getopts 'sght:' flag; do
+  case "${flag}" in
+  g)
+    # Store the PID so we can kill it later
+    # and start the move mouse loop
+    mkdir -p $TEMPDIR
+    movemouse &
+    echo $! >$PID
+    ;;
+  s) kill $(cat $PID) ;;
+  h) print_help ;;
+  *) print_help ;;
+  esac
+done
