@@ -9,7 +9,7 @@
 
 # TODO (maybe) choose a specific area of screen to keep active
 
-dev='/dev/input/event9'
+dev='/dev/input/event7'
 
 TEMPDIR='/tmp/movemouse'
 PID=$TEMPDIR/PID
@@ -23,7 +23,7 @@ function checkprivs() {
 
 function move() {
   # Don't do anything if mouse is manually being moved (Check every 2sec).
-  if (! inotifywait /dev/input/event9 -qq -t 2); then
+  if (! inotifywait $dev -qq -t 2); then
     evemu-event $dev --type EV_REL --code REL_X --value $1 &&
       evemu-event $dev --type EV_REL --code REL_Y --value $1 --sync
   else
