@@ -41,10 +41,9 @@ function print_help() {
 }
 
 function movemouse() {
-  checkprivs
   while true; do
-    move 10
-    move -10
+    move 10 &&
+      move -10
   done
 }
 
@@ -58,7 +57,7 @@ while getopts 'sght:' flag; do
     # Store the PID so we can kill it later
     # and start the move mouse loop
     mkdir -p $TEMPDIR
-    movemouse &
+    checkprivs && movemouse &
     echo $! >$PID
     ;;
   s) kill $(cat $PID) ;;
