@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Helper script to enable the performance gov with proton or others
+# modified version of CachyOS' game-performance script
+if ! command -v powerprofilesctl &>/dev/null; then
+  echo "Error: powerprofilesctl not found" >&2
+  exit 1
+fi
+
+export PROTON_ENABLE_WAYLAND=1
+export PROTON_ENABLE_HDR=1
+export PROTON_NVIDIA_LIBS=1
+export PROTON_NVIDIA_LIBS_NO_32BIT=1
+
+function before_game {
+  notify-send "game started"
+  gpu-screen-recorder \
+    -w "portal" \
+    -restore-portal-session "yes" \
+    -q "high" -f 60 -r 30 -c mp4 \
+    -o "$HOME/Videos/Replays" \
+    -a "default_input" -a "default_output" &
+}
+
+function after_game {
+  notify-send "game ended"
+  killall -SIGINT gpu-screen-recorder
+}
+
+before_game &&
+  # Don't fail if the CPU driver doesn't support performance power profile
+  if ! powerprofilesctl list | grep -q 'performance:'; then
+    exec "$@"
+  fi
+# Set performance governors, as long the game is launched
+systemd-inhibit --why "Game mode" powerprofilesctl launch \
+  -p performance -r "Game mode" -- "$@"
+after_game

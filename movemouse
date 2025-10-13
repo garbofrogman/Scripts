@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# Dependencies:
+# evemu
+# inotify-tools
+
 # TODO Get mouse device automatically
 # Workaround for now is to use evemu-record and evemu-describe
 
@@ -9,7 +13,7 @@
 
 # TODO (maybe) choose a specific area of screen to keep active
 
-dev='/dev/input/event7'
+dev='/dev/input/event10'
 
 TEMPDIR='/tmp/movemouse'
 PID=$TEMPDIR/PID
