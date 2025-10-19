@@ -6,13 +6,13 @@ if ! command -v powerprofilesctl &>/dev/null; then
   exit 1
 fi
 
-export PROTON_ENABLE_WAYLAND=1
-export PROTON_ENABLE_HDR=1
+export PROTON_ENABLE_WAYLAND=1   # Improved latency/frame pacing (but breaks Steam overlay)
+export PROTON_NO_WM_DECORATION=1 # Fixes borderless fullscreen issues, mouse clicking through windows
+export PROTON_ENABLE_HDR=1       # (Requires PROTON_ENABLE_WAYLAND)
 export PROTON_NVIDIA_LIBS=1
 export PROTON_NVIDIA_LIBS_NO_32BIT=1
 
 function before_game {
-  notify-send "game started"
   gpu-screen-recorder \
     -w "portal" \
     -restore-portal-session "yes" \
@@ -22,7 +22,6 @@ function before_game {
 }
 
 function after_game {
-  notify-send "game ended"
   killall -SIGINT gpu-screen-recorder
 }
 
