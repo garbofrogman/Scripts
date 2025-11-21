@@ -1,0 +1,340 @@
+import os
+import sys
+import json
+import frontmatter
+import shutil
+
+# File read/write functions
+def generate_note_path(config, note_type):
+    note_path_template = config.get(f"{note_type}_note_path")
+    if note_type == "daily":
+        new_note_path = note_path_template.replace("{{date}}", date)
+    else:
+        new_note_path = note_path_template
+    return new_note_path
+def read_config(config_file_path):
+    with open(config_file_path, 'r', encoding='utf-8') as config_file:
+        config_content = config_file.read()
+        config_content = config_content.replace("{{date}}", date)
+        return json.loads(config_content)
+def create_or_update_note(config, note_path: str):
+    # Check if the note exists
+    if not os.path.isfile(note_path):
+        # If it doesn't exist, create it by copying the template
+        template_path = config.get(f"{note_type}_note_template_path")
+        
+        if os.path.isfile(template_path):
+            shutil.copy(template_path, note_path)
+            print(f"Created a new note: {note_path}")
+        else:
+            print(f"Template not found at: {template_path}")
+            return
+    else:
+        print(f"Edited note: {note_path}")
+        return
+# End file read/write functions
+
+# YAML read/write functions
+def read_frontmatter(note_path: str):
+    try:
+        note = frontmatter.load(note_path)
+        # Read frontmatter using the frontmatter library
+        # with open(note_path, 'r', encoding='utf-8') as file:
+        #     note_content = file.read()
+
+        # note = frontmatter.loads(note_content)
+        return note.metadata
+    except Exception as e:
+        print(f"Error reading frontmatter from {note_path}: {e}")
+        return None
+def save_updated_frontmatter(note_path, frontmatter_data):
+    with open(note_path, 'r', encoding='utf-8') as file:
+        note_content = file.read()
+
+    updated_note = frontmatter.loads(note_content)
+    updated_note.metadata = frontmatter_data
+
+    with open(note_path, 'w', encoding='utf-8') as file:
+        file.write(frontmatter.dumps(updated_note))
+def find_category(frontmatter_to_search, subkey_to_find):
+    
+    for key, value in frontmatter_to_search.items():
+        if isinstance(value, dict) and subkey_to_find in value:
+            print(f"category found: {key}")
+            return key
+    return None  # Handle the case when category is not found
+# End YAML read/write functions
+
+# Log entry functions
+def add_journal_entry():
+    #timestamp = string_to_time(sys.argv[4])
+    timestamp = sys.argv[4]
+    journal_entry = sys.argv[5]
+    # Read the content of the Obsidian note
+    with open(daily_note_path, 'r', encoding='utf-8') as file:
+        note_content = file.read()
+
+    # Find the position of the journal entry placeholder
+    placeholder = "%%Journal entries%%"
+    placeholder_index = note_content.find(placeholder)
+
+    # Add a timestamped journal entry above the placeholder
+    new_entry = f"{timestamp}\n\t {journal_entry}\n"
+    updated_content = note_content[:placeholder_index] + new_entry + note_content[placeholder_index:]
+
+    # Write the updated content back to the file
+    with open(daily_note_path, 'w', encoding='utf-8') as file:
+        file.write(updated_content)
+def log_habit():
+    habit = sys.argv[4]
+    frontmatter_data = read_frontmatter(daily_note_path)
+    category = find_category(frontmatter_data, habit)
+    time_entry = None
+    if len(sys.argv) == 6:
+        time_entry = float(sys.argv[5])
+    
+
+    if frontmatter_data[category][habit] is None:
+        frontmatter_data[category][habit] = [1]
+    else:
+        frontmatter_data[category][habit][0] = 1
+
+    if time_entry is not None:
+        if len(frontmatter_data[category][habit]) == 2:
+            frontmatter_data[category][habit][1] += time_entry
+        else:
+            frontmatter_data[category][habit].append(time_entry)
+
+        # Cancel the "done" entry by reducing time spent to 0
+        # Quickly reduce to 0 by entering 00 as time entry
+        if time_entry == 00 or frontmatter_data[category][habit][1] == 0:
+            frontmatter_data[category][habit] = [0]
+        # Quick and dirty way to reset the entry to None is to enter my phone number as a time_entry
+        if time_entry == 5145538371:
+            frontmatter_data[category][habit] = None
+    save_updated_frontmatter(daily_note_path, frontmatter_data)
+def log_drug_consumption():
+    frontmatter_data = read_frontmatter(daily_note_path)
+    timestamp = None
+    drug = sys.argv[4]
+    category = "drugs"
+    
+    if drug == "sober":
+        log_sober("set")
+        return
+
+    if frontmatter_data[category][drug] is None:
+        frontmatter_data[category][drug] = [1]
+    else:
+        frontmatter_data[category][drug][0] = 1
+    
+    if len(sys.argv) == 6:
+        timestamp_arg = sys.argv[5]
+        # Remove timestamp or full log
+        if timestamp_arg == "reset":
+            frontmatter_data[category][drug] = None
+        elif timestamp_arg == "false":
+            #frontmatter_data[category][drug] = None
+            frontmatter_data[category][drug] = [0]
+        else:
+            #timestamp = string_to_time(str(timestamp_arg))
+            timestamp = timestamp_arg
+
+    if timestamp is not None:
+        if len(frontmatter_data[category][drug]) == 2:
+            frontmatter_data[category][drug][1] = timestamp
+        else:
+            frontmatter_data[category][drug].append(timestamp)
+
+    save_updated_frontmatter(daily_note_path, frontmatter_data)
+    # Manually log sober
+    #if drug == "sober":
+    #    log_sober("set")
+    
+    log_sober() # Update sober value based on other drugs
+def log_mood():
+    frontmatter_data = read_frontmatter(daily_note_path)
+    #timestamp = string_to_time(sys.argv[4])
+    timestamp = sys.argv[4]
+    rating = int(sys.argv[5])
+    descriptor = None
+    if len(sys.argv) == 7:
+        descriptor = str(sys.argv[6])
+
+    if frontmatter_data["mood"]["logs"] is None:
+        frontmatter_data["mood"]["logs"] = {}
+    
+    frontmatter_data["mood"]["logs"][timestamp] = [rating]
+
+    if descriptor is not None:
+        frontmatter_data["mood"]["logs"][timestamp].append(str(descriptor))
+
+    # Update average
+    sum = 0
+    count = 0
+    for entry in frontmatter_data["mood"]["logs"]:
+        print(frontmatter_data["mood"]["logs"][entry][0])
+        sum += frontmatter_data["mood"]["logs"][entry][0]
+        count += 1
+    frontmatter_data["mood"]["average"] = sum / count
+    
+    save_updated_frontmatter(daily_note_path, frontmatter_data)
+def log_time_only():
+    # For events such as sleep or daylight time which only record time
+    frontmatter_data = read_frontmatter(daily_note_path)
+    time = int(sys.argv[5])
+    log_type = str(sys.argv[4])
+    category = find_category(frontmatter_data, log_type)
+
+    if frontmatter_data[category][log_type] == None:
+        frontmatter_data[category][log_type] = time
+    else:
+        if len(sys.argv) == 7:
+            if sys.argv[6] == "overwrite":
+                frontmatter_data[category][log_type] = time
+            elif sys.argv[6] == "add":
+                frontmatter_data[category][log_type] += time
+
+    save_updated_frontmatter(daily_note_path, frontmatter_data)
+def log_other():
+    # For events such as effort, steps, or sleep, which only take a number (whether int or float)
+    frontmatter_data = read_frontmatter(daily_note_path)
+    value = None
+    log_type = str(sys.argv[4])
+    category = find_category(frontmatter_data, log_type)
+
+    if len(sys.argv) > 6:
+        if sys.argv[6] == "float":
+            value = float(sys.argv[5])
+        elif sys.argv[6] == "int":
+            value = int(sys.argv[5])
+
+    if frontmatter_data[category][log_type] == None:
+        frontmatter_data[category][log_type] = value
+    else:
+        if len(sys.argv) == 8:
+            if sys.argv[7] == "overwrite":
+                frontmatter_data[category][log_type] = value
+            elif sys.argv[7] == "add":
+                frontmatter_data[category][log_type] += value
+            elif sys.argv[7] == "reset":
+                frontmatter_data[category][log_type] = None
+    print(value)
+    save_updated_frontmatter(daily_note_path, frontmatter_data)
+def log_sober(function="check"):
+    frontmatter_data = read_frontmatter(daily_note_path)
+    category = "drugs"
+    drugs_done = 0
+
+    if function == "set":
+        for substance in frontmatter_data[category]:
+            frontmatter_data[category][substance] = [0]
+
+    for substance in frontmatter_data[category]:
+        if substance != "sober" and substance != "coffee":
+            if frontmatter_data[category][substance] == None:
+                #drugs_done = 1
+                break #not logging sober for null
+            elif frontmatter_data[category][substance][0] == 1:
+                drugs_done += 1
+        
+    if drugs_done == 0:
+        frontmatter_data["health"]["sober"] = 1
+    else:
+        frontmatter_data["health"]["sober"] = 0
+
+    save_updated_frontmatter(daily_note_path, frontmatter_data)
+# End log entry functions
+
+# Other functions
+def float_to_time(float_time: float):
+    #Not needed. Figured out how to get 24hr time from Shortcuts
+    time_input = str(float_time)
+    # Splitting the string at the decimal point
+    hours_str, minutes_str = time_input.split(".")
+    # Converting hours to an integer
+    hours = int(hours_str)
+    # Extracting the first two characters for minutes or padding if necessary
+    minutes = minutes_str.ljust(2, "0")[:2]
+
+    # Creating a formatted time string
+    time_string = f"{hours}:{minutes}"
+    return time_string
+def string_to_time(string_time: str):
+    #Convert strings such as "3:30 PM" to 24-hr time "15:30 PM"
+    #Not needed. Figured out how to get 24hr time from Shortcuts
+    time_input = str(string_time)
+    hours_str, minutes_str = time_input.split(":")
+    AM_or_PM = time_input[len(time_input) - 2:] # Omit the first 6 chars to get just "AM" or "PM"
+
+    hours = int(hours_str)
+    minutes = minutes_str.ljust(2, "0")[:2]
+
+    if AM_or_PM == "PM" and hours != 12:
+        hours = hours + 12
+
+    # Creating a formatted time string
+    time_string = f"{hours}:{minutes}"
+    return time_string
+def list_habits():
+    daily_note_template_path = config.get(f"{note_type}_note_template_path")
+    frontmatter_data = read_frontmatter(daily_note_template_path)
+    # testing
+    # print(frontmatter_data)
+    # sys.exit()
+    sections = ["habits", "tasks"]
+    #habits = []
+
+    for section in sections:
+        section_data = frontmatter_data.get(section)
+        
+        for key, value in section_data.items():
+            #habits.append(key)
+            print(key)
+    sys.exit()
+def list_drugs():
+    daily_note_template_path = config.get(f"{note_type}_note_template_path")
+    frontmatter_data = read_frontmatter(daily_note_template_path)
+    sections = ["drugs"]
+    #drugs = []
+
+    for section in sections:
+        section_data = frontmatter_data.get(section)
+        
+        for key, value in section_data.items():
+            #drugs.append(key)
+            print(key)
+    sys.exit()
+# End other functions
+
+# Global arguments
+note_type = sys.argv[1]
+entry_type = sys.argv[2]
+date = sys.argv[3]
+# End global arguments - argv[4]... are defined in functions as needed
+
+
+# Get note path
+#config_file_path = ".\config.json"
+config_file_path = "/Volumes/Elements/obsidian/Scripts/config.json"
+config = read_config(config_file_path)
+if entry_type == "list_habits":
+    list_habits()
+elif entry_type == "list_drugs":
+    list_drugs()
+daily_note_path = generate_note_path(config, "daily")
+# End get note path
+
+create_or_update_note(config, daily_note_path)
+
+if entry_type == "journal":
+    add_journal_entry()
+elif entry_type == "habit":
+    log_habit()
+elif entry_type == "drug":
+    log_drug_consumption()
+elif entry_type == "mood":
+    log_mood()
+elif entry_type == "other":
+    log_other()
+

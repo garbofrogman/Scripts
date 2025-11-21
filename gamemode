@@ -6,9 +6,9 @@ if ! command -v powerprofilesctl &>/dev/null; then
   exit 1
 fi
 
-export PROTON_ENABLE_WAYLAND=1   # Improved latency/frame pacing (but breaks Steam overlay)
+export PROTON_ENABLE_WAYLAND=0   # Improved latency/frame pacing (but breaks Steam overlay)
 export PROTON_NO_WM_DECORATION=1 # Fixes borderless fullscreen issues, mouse clicking through windows
-export PROTON_ENABLE_HDR=1       # (Requires PROTON_ENABLE_WAYLAND)
+export PROTON_ENABLE_HDR=0       # (Requires PROTON_ENABLE_WAYLAND)
 export PROTON_NVIDIA_LIBS=1
 export PROTON_NVIDIA_LIBS_NO_32BIT=1
 
