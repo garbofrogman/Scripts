@@ -4,20 +4,22 @@
 # evemu
 # inotify-tools
 
-# TODO Get mouse device automatically
+# TODO: Get mouse device automatically
 # Workaround for now is to use evemu-record and evemu-describe
 
-# TODO Better check for mouse activity
+# TODO: take end-time parameter. Use the "at" package to kill the process at that time.
+# https://www.commandlinefu.com/commands/view/7/execute-a-command-at-a-given-time
 
-# TODO option to set end time
+# TODO: (maybe) choose a specific area of screen to keep active
 
-# TODO (maybe) choose a specific area of screen to keep active
-
+# Specify mouse device. Tip: use `evemu-record` and `evemu-describe` to find this.
 dev='/dev/input/event10'
 
+# For killing the process later.
 TEMPDIR='/tmp/movemouse'
 PID=$TEMPDIR/PID
 
+# Root needed when running `evemu-event`
 function checkprivs() {
   if [ $(id -u) -ne 0 ]; then
     echo "Must be root."
@@ -26,6 +28,7 @@ function checkprivs() {
 }
 
 function move() {
+  # TODO: Better check for mouse activity
   # Don't do anything if mouse is manually being moved (Check every 2sec).
   if (! inotifywait $dev -qq -t 2); then
     evemu-event $dev --type EV_REL --code REL_X --value $1 &&
