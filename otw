@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+if [ $# -lt 2 ]; then
+  show_help
+fi
+
+function show_help() {
+  echo "Syntax: otw game level"
+  exit 64
+}
+
+ssh ${1}${2}@${1}.labs.overthewire.org -p 2220

@@ -13,7 +13,7 @@
 # TODO: (maybe) choose a specific area of screen to keep active
 
 # Specify mouse device. Tip: use `evemu-record` and `evemu-describe` to find this.
-dev='/dev/input/event10'
+dev='/dev/input/event9'
 
 # For killing the process later.
 TEMPDIR='/tmp/movemouse'
