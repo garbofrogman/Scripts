@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+# Intented to be run from Dolphin context menu via ~/.local/share/kio/servicemenus/zipline-fileshare.desktop
+
+TOKEN=MTc3NDAwMzcyNzAzNA==.MzIyZGYwZDI3ZTIwOTQwNzY0NDdiYTgxLjIxMGYxYjkyY2YxOGM2ZjA0MjgyYTA1YzczODNhNDBmZmUxYTFhZjUzYTJjYzdjMTJjOTRiOGU1NjkxZGVkNjk0YjA3ZGQ3MGM5YWJiMmE3OWRmN2ViNDU5YTcyMjdjYzE4ODhjMzE5NGIwMWEyNTBiMjM1MDFjNzhhOGEwZDk4ODIuYTY3ZjJjZmYzZGZjZDMzMGEyY2Q2MWMxN2RkOTMxYWU=
+
+if [[ $# -gt 0 ]]; then
+  curl -X POST http://192.168.0.15:24424/api/upload \
+    -H "Authorization: $TOKEN" \
+    -F "files=@$1"
+  notify-send "Uploaded $1"
+fi
