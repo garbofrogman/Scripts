@@ -3,10 +3,22 @@
 # Intented to be run from Dolphin context menu via ~/.local/share/kio/servicemenus/zipline-fileshare.desktop
 
 TOKEN=MTc3NDAwMzcyNzAzNA==.MzIyZGYwZDI3ZTIwOTQwNzY0NDdiYTgxLjIxMGYxYjkyY2YxOGM2ZjA0MjgyYTA1YzczODNhNDBmZmUxYTFhZjUzYTJjYzdjMTJjOTRiOGU1NjkxZGVkNjk0YjA3ZGQ3MGM5YWJiMmE3OWRmN2ViNDU5YTcyMjdjYzE4ODhjMzE5NGIwMWEyNTBiMjM1MDFjNzhhOGEwZDk4ODIuYTY3ZjJjZmYzZGZjZDMzMGEyY2Q2MWMxN2RkOTMxYWU=
+mtype=$(file --mime-type -b $1)
 
 if [[ $# -gt 0 ]]; then
-  curl -X POST http://192.168.0.15:24424/api/upload \
+  nid=$(notify-send \
+    --print-id \
+    --icon=dialog-information \
+    --app-name "Upload to fileshare.georgeandjess.space" \
+    "Uploading $1...")
+  curl -X POST https://fileshare.georgeandjess.space/api/upload \
     -H "Authorization: $TOKEN" \
-    -F "files=@$1"
-  notify-send "Uploaded $1"
+    -F "file=@$1;type=$mtype" |
+    jq -r '.files[0].url' |
+    wl-copy &&
+    notify-send \
+      --replace-id=$nid \
+      --icon=dialog-positive \
+      --app-name "Upload to fileshare.georgeandjess.space" \
+      "Uploaded $1, share link copied to clipboard."
 fi
