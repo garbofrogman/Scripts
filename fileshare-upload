@@ -6,19 +6,25 @@ TOKEN=MTc3NDAwMzcyNzAzNA==.MzIyZGYwZDI3ZTIwOTQwNzY0NDdiYTgxLjIxMGYxYjkyY2YxOGM2Z
 mtype=$(file --mime-type -b $1)
 
 if [[ $# -gt 0 ]]; then
+  # Display notification, store its ID so it can be replaced by upload complete notif later.
   nid=$(notify-send \
+    --expire-time=0 \
     --print-id \
     --icon=dialog-information \
     --app-name "Upload to fileshare.georgeandjess.space" \
     "Uploading $1...")
+  # Upload the file
   curl -X POST https://fileshare.georgeandjess.space/api/upload \
     -H "Authorization: $TOKEN" \
     -F "file=@$1;type=$mtype" |
+    # Get the URL from the output
     jq -r '.files[0].url' |
-    wl-copy &&
-    notify-send \
-      --replace-id=$nid \
-      --icon=dialog-positive \
-      --app-name "Upload to fileshare.georgeandjess.space" \
-      "Uploaded $1, share link copied to clipboard."
+    # Copy the URL to clipboard
+    wl-copy
+  # Upload completed notification
+  notify-send \
+    --replace-id=$nid \
+    --icon=dialog-positive \
+    --app-name "Upload to fileshare.georgeandjess.space" \
+    "Uploaded $1, share link copied to clipboard."
 fi
