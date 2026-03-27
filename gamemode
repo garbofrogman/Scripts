@@ -12,17 +12,24 @@ export PROTON_ENABLE_HDR=0       # (Requires PROTON_ENABLE_WAYLAND)
 export PROTON_NVIDIA_LIBS=1
 export PROTON_NVIDIA_LIBS_NO_32BIT=1
 
+PWPROCESS=0
+
 function before_game {
+  pipewire -c filter-chain.conf &
+  PWPROCESS=$!
+
   gpu-screen-recorder \
     -w "portal" \
     -restore-portal-session "yes" \
     -q "high" -f 60 -r 30 -c mp4 \
     -o "$HOME/Videos/Replays" \
-    -a "default_input" -a "default_output" &
+    -a "output.noise_cancel|default_output" &
+  # -a "default_input" -a "default_output" &
 }
 
 function after_game {
   killall -SIGINT gpu-screen-recorder
+  kill $PWPROCESS
 }
 
 before_game &&
