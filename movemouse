@@ -3,36 +3,35 @@
 # Dependencies:
 # evemu
 # inotify-tools
+# getopt (util-linux)
+# at (optional, for --until)
 
 # TODO: Get mouse device automatically
 # Workaround for now is to use evemu-record and evemu-describe
 
-# TODO: take end-time parameter. Use the "at" package to kill the process at that time.
-# https://www.commandlinefu.com/commands/view/7/execute-a-command-at-a-given-time
-
 # TODO: (maybe) choose a specific area of screen to keep active
 
 # Specify mouse device. Tip: use `evemu-record` and `evemu-describe` to find this.
-dev='/dev/input/event9'
+dev='/dev/input/event7'
 
 # For killing the process later.
 TEMPDIR='/tmp/movemouse'
-PID=$TEMPDIR/PID
+PIDFILE=$TEMPDIR/PID
+KEEPALIVEFILE=$TEMPDIR/KEEPALIVE_PID
 
-# Root needed when running `evemu-event`
-function checkprivs() {
-  if [ $(id -u) -ne 0 ]; then
-    echo "Must be root."
-    exit 126
-  fi
+# Keep sudo ticket alive so evemu-event doesn't re-prompt.
+function keepalive() {
+  while true; do
+    sudo -v
+    sleep 60
+  done
 }
 
 function move() {
-  # TODO: Better check for mouse activity
   # Don't do anything if mouse is manually being moved (Check every 2sec).
-  if (! inotifywait $dev -qq -t 2); then
-    evemu-event $dev --type EV_REL --code REL_X --value $1 &&
-      evemu-event $dev --type EV_REL --code REL_Y --value $1 --sync
+  if (! sudo inotifywait $dev -qq -t 2); then
+    sudo evemu-event $dev --type EV_REL --code REL_X --value $1 &&
+      sudo evemu-event $dev --type EV_REL --code REL_Y --value $1 --sync
   else
     sleep 30
   fi
@@ -41,9 +40,11 @@ function move() {
 function print_help() {
   echo "Usage: movemouse [OPTION]"
   echo "Options:"
-  echo "  -g  Go...start moving the mouse lol."
-  echo "  -s  Stop moving the mouse."
-  echo "  -h  Show this help text and then exit."
+  echo "  -g              Start moving the mouse."
+  echo "  -s              Stop moving the mouse."
+  echo "  --until=TIME    Stop at given time (e.g. 14:30, 'now + 30 minutes')."
+  echo "                  Requires -g. Uses 'at' for scheduling."
+  echo "  -h              Show this help text and exit."
   exit 0
 }
 
@@ -54,21 +55,64 @@ function movemouse() {
   done
 }
 
-if [ $# == "0" ]; then
+PARSED=$(getopt -o 'sgh' -l 'until:' -n 'movemouse' -- "$@")
+if [ $? -ne 0 ]; then
   print_help
 fi
+eval set -- "$PARSED"
 
-while getopts 'sght:' flag; do
-  case "${flag}" in
-  g)
-    # Store the PID so we can kill it later
-    # and start the move mouse loop
-    mkdir -p $TEMPDIR
-    checkprivs && movemouse &
-    echo $! >$PID
-    ;;
-  s) kill $(cat $PID) ;;
-  h) print_help ;;
-  *) print_help ;;
+G=0
+S=0
+UNTIL=""
+
+while true; do
+  case "$1" in
+    -g) G=1; shift ;;
+    -s) S=1; shift ;;
+    --until) UNTIL="$2"; shift 2 ;;
+    -h) print_help ;;
+    --) shift; break ;;
+    *) print_help ;;
   esac
 done
+
+if [ "$S" == "1" ]; then
+  if [ -f $PIDFILE ]; then
+    kill $(cat $PIDFILE) 2>/dev/null
+  fi
+  if [ -f $KEEPALIVEFILE ]; then
+    kill $(cat $KEEPALIVEFILE) 2>/dev/null
+  fi
+  rm -rf $TEMPDIR
+fi
+
+if [ "$G" == "1" ]; then
+  if [ -d $TEMPDIR ]; then
+    echo "movemouse is already running. Use -s to stop it first."
+    exit 1
+  fi
+
+  mkdir -p $TEMPDIR
+
+  sudo -v
+  if [ $? -ne 0 ]; then
+    echo "sudo authentication failed."
+    rm -rf $TEMPDIR
+    exit 1
+  fi
+
+  keepalive &
+  echo $! >$KEEPALIVEFILE
+
+  movemouse &
+  echo $! >$PIDFILE
+
+  if [ -n "$UNTIL" ]; then
+    if ! command -v at &>/dev/null; then
+      echo "Warning: 'at' not found. --until will not work."
+      echo "Install it (e.g. 'sudo apt install at' or equivalent)."
+    else
+      echo "kill \$(cat $PIDFILE) \$(cat $KEEPALIVEFILE) 2>/dev/null; rm -rf $TEMPDIR" | at $UNTIL
+    fi
+  fi
+fi
