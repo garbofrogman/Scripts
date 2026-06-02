@@ -37,9 +37,10 @@ function move() {
 }
 
 function print_help() {
-  echo "Usage: movemouse [OPTION]"
+  echo "Usage: movemouse [--until=TIME]"
+  echo "       movemouse -s"
+  echo ""
   echo "Options:"
-  echo "  -g              Start moving the mouse."
   echo "  -s              Stop moving the mouse."
   echo "  --until=TIME    Stop at given time (e.g. 14:30 or '30 minutes')."
   echo "  -h              Show this help text and exit."
@@ -53,22 +54,17 @@ function movemouse() {
   done
 }
 
-PARSED=$(getopt -o 'sgh' -l 'until:' -n 'movemouse' -- "$@")
+PARSED=$(getopt -o 'sh' -l 'until:' -n 'movemouse' -- "$@")
 if [ $? -ne 0 ]; then
   print_help
 fi
 eval set -- "$PARSED"
 
-G=0
 S=0
 UNTIL=""
 
 while true; do
   case "$1" in
-  -g)
-    G=1
-    shift
-    ;;
   -s)
     S=1
     shift
@@ -94,26 +90,31 @@ if [ "$S" == "1" ]; then
     kill $(cat $KEEPALIVEFILE) 2>/dev/null
   fi
   rm -rf $TEMPDIR
-elif [ "$G" == "1" ]; then
+else
   if [ -d $TEMPDIR ]; then
-    echo "movemouse is already running. Use -s to stop it first."
-    exit 1
+    if [ -z "$UNTIL" ]; then
+      echo "movemouse is already running. Use -s to stop it first."
+      exit 1
+
+    fi
   fi
 
-  mkdir -p $TEMPDIR
+  if [ ! -d $TEMPDIR ]; then
+    mkdir -p $TEMPDIR
 
-  sudo -v
-  if [ $? -ne 0 ]; then
-    echo "sudo authentication failed."
-    rm -rf $TEMPDIR
-    exit 1
+    sudo -v
+    if [ $? -ne 0 ]; then
+      echo "sudo authentication failed."
+      rm -rf $TEMPDIR
+      exit 1
+    fi
+
+    keepalive &
+    echo $! >$KEEPALIVEFILE
+
+    movemouse &
+    echo $! >$PIDFILE
   fi
-
-  keepalive &
-  echo $! >$KEEPALIVEFILE
-
-  movemouse &
-  echo $! >$PIDFILE
 
   if [ -n "$UNTIL" ]; then
     target=$(date -d "$UNTIL" +%s 2>/dev/null)
