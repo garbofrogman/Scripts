@@ -4,7 +4,6 @@
 # evemu
 # inotify-tools
 # getopt (util-linux)
-# at (optional, for --until)
 
 # TODO: Get mouse device automatically
 # Workaround for now is to use evemu-record and evemu-describe
@@ -42,8 +41,7 @@ function print_help() {
   echo "Options:"
   echo "  -g              Start moving the mouse."
   echo "  -s              Stop moving the mouse."
-  echo "  --until=TIME    Stop at given time (e.g. 14:30, 'now + 30 minutes')."
-  echo "                  Requires -g. Uses 'at' for scheduling."
+  echo "  --until=TIME    Stop at given time (e.g. 14:30 or '30 minutes')."
   echo "  -h              Show this help text and exit."
   exit 0
 }
@@ -67,12 +65,24 @@ UNTIL=""
 
 while true; do
   case "$1" in
-    -g) G=1; shift ;;
-    -s) S=1; shift ;;
-    --until) UNTIL="$2"; shift 2 ;;
-    -h) print_help ;;
-    --) shift; break ;;
-    *) print_help ;;
+  -g)
+    G=1
+    shift
+    ;;
+  -s)
+    S=1
+    shift
+    ;;
+  --until)
+    UNTIL="$2"
+    shift 2
+    ;;
+  -h) print_help ;;
+  --)
+    shift
+    break
+    ;;
+  *) print_help ;;
   esac
 done
 
@@ -84,9 +94,7 @@ if [ "$S" == "1" ]; then
     kill $(cat $KEEPALIVEFILE) 2>/dev/null
   fi
   rm -rf $TEMPDIR
-fi
-
-if [ "$G" == "1" ]; then
+elif [ "$G" == "1" ]; then
   if [ -d $TEMPDIR ]; then
     echo "movemouse is already running. Use -s to stop it first."
     exit 1
@@ -108,11 +116,19 @@ if [ "$G" == "1" ]; then
   echo $! >$PIDFILE
 
   if [ -n "$UNTIL" ]; then
-    if ! command -v at &>/dev/null; then
-      echo "Warning: 'at' not found. --until will not work."
-      echo "Install it (e.g. 'sudo apt install at' or equivalent)."
-    else
-      echo "kill \$(cat $PIDFILE) \$(cat $KEEPALIVEFILE) 2>/dev/null; rm -rf $TEMPDIR" | at $UNTIL
+    target=$(date -d "$UNTIL" +%s 2>/dev/null)
+    if [ $? -ne 0 ] || [ -z "$target" ]; then
+      echo "Error: could not parse '$UNTIL'. Use formats like '14:30' or '30 minutes'."
+      exit 1
     fi
+    now=$(date +%s)
+    [ $target -le $now ] && target=$((target + 86400))
+    (
+      sleep $((target - now))
+      kill $(cat "$PIDFILE") $(cat "$KEEPALIVEFILE") 2>/dev/null
+      rm -rf "$TEMPDIR"
+      notify-send "$UNTIL reached. Movemouse stopped."
+      exit 0
+    ) &
   fi
 fi
