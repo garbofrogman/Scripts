@@ -5,13 +5,40 @@
 # inotify-tools
 # getopt (util-linux)
 
-# TODO: Get mouse device automatically
-# Workaround for now is to use evemu-record and evemu-describe
-
 # TODO: (maybe) choose a specific area of screen to keep active
 
-# Specify mouse device. Tip: use `evemu-record` and `evemu-describe` to find this.
-dev='/dev/input/event7'
+# Mouse device. Set manualy if detection doesn't work. Use evemu-record to find your device.
+dev=''
+
+function detect_mouse() {
+  local handler ev_mask=0 rel_mask=0 line
+  while IFS= read -r line; do
+    case "$line" in
+    "H: Handlers="*)
+      handler=${line#*Handlers=}
+      ;;
+    "B: EV="*)
+      ev_mask=$((16#${line#B: EV=}))
+      ;;
+    "B: REL="*)
+      rel_mask=$((16#${line#B: REL=}))
+      ;;
+    "")
+      if [ -n "$handler" ]; then
+        if [ $((ev_mask & 0x03)) -eq 3 ] && [ $((rel_mask & 0x03)) -eq 3 ]; then
+          for h in $handler; do
+            [[ "$h" == event* ]] && echo "/dev/input/$h" && return 0
+          done
+        fi
+      fi
+      handler=
+      ev_mask=0
+      rel_mask=0
+      ;;
+    esac
+  done </proc/bus/input/devices
+  return 1
+}
 
 # For killing the process later.
 TEMPDIR='/tmp/movemouse'
@@ -102,6 +129,16 @@ else
   if [ ! -d $TEMPDIR ]; then
     mkdir -p $TEMPDIR
 
+    if [ -z "$dev" ]; then
+      dev=$(detect_mouse)
+    fi
+    if [ -z "$dev" ]; then
+      echo "Error: could not detect mouse device. Either set 'dev' at the top of"
+      echo "the script, or use 'evemu-record' and 'evemu-describe' to find it."
+      rm -rf $TEMPDIR
+      exit 1
+    fi
+
     sudo -v
     if [ $? -ne 0 ]; then
       echo "sudo authentication failed."
@@ -114,6 +151,7 @@ else
 
     movemouse &
     echo $! >$PIDFILE
+    echo $dev
   fi
 
   if [ -n "$UNTIL" ]; then
